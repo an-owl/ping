@@ -100,6 +100,15 @@ impl FileRef {
         
         Ok(FileRef {full_path, file})
     }
+
+    pub fn load_file(&mut self) -> uefi::Result<Vec<u8>> {
+        let info: Box<FileInfo> = self.file.get_boxed_info()?;
+        let mut buffer = Vec::new();
+        buffer.resize(info.file_size() as usize, 0);
+        
+        self.file.read(&mut buffer)?;
+        Ok(buffer)
+    }
 }
 
 impl core::fmt::Display for FileRef {
