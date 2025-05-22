@@ -4,7 +4,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use core::ops::Index;
+use core::ops::{Index, IndexMut};
 use uefi::{cstr16, CString16};
 use uefi::proto::media::file::{Directory, File, FileAttribute, FileInfo, FileMode, FileSystemVolumeLabel, RegularFile};
 
@@ -79,7 +79,12 @@ impl Index<usize> for FileFinder {
     fn index(&self, index: usize) -> &Self::Output {
         &self.found_files[index]
     }
-    
+}
+
+impl IndexMut<usize> for FileFinder {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.found_files[index]
+    }
 }
 
 pub struct FileRef {
