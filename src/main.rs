@@ -5,14 +5,17 @@ extern crate alloc;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use uefi::boot::{get_handle_for_protocol, image_handle, load_image, locate_handle_buffer, open_protocol_exclusive, start_image, unload_image, ScopedProtocol, SearchType};
+use uefi::boot::{get_handle_for_protocol, image_handle, load_image, locate_handle_buffer, open_protocol_exclusive, stall, start_image, unload_image, ScopedProtocol, SearchType};
 use uefi::prelude::*;
-use uefi::{println, CString16, Identify};
+use uefi::{print, println, CString16, Identify};
+use uefi::helpers::init;
+use uefi::proto::BootPolicy;
 use uefi::proto::console::text::Key;
 use blip::FileFinder;
 
 #[entry]
 fn efi_main() -> Status {
+    init().unwrap();
     let handles = match locate_handle_buffer(SearchType::ByProtocol(&uefi::proto::media::fs::SimpleFileSystem::GUID)) {
         Ok(h) => h,
         Err(error) => {
@@ -24,15 +27,10 @@ fn efi_main() -> Status {
     let mut locator = FileFinder::new();
     
     for handle in handles.iter() {
-        match open_protocol_exclusive(*handle) { // I'd use exclusive but other handles may be using these.
-            Ok(mut proto) => {
-                let _ = locator.locate_normal_boot_files_in_fs(&mut *proto).map_err(|error| {
-                    // Log error and ignore
-                    log::error!("Failed to locate filesystem handles: {error}");
-                });
-            }
+        match locator.locate_normal_boot_files_in_fs(handle) {
+            Ok(_) => {}
             Err(error) => {
-                log::debug!("Failed to open protocol: {error}"); // may occur do to other handles doing things
+                log::error!("Failed to locate files: {error}");
             }
         }
     }
@@ -40,6 +38,10 @@ fn efi_main() -> Status {
     println!("found {} possible files", locator.len());
     for (i, file) in locator.iter().enumerate() {
         println!("{: >4}: {}",i,file)
+    }
+    if locator.len() == 0 {
+        println!("No valid files found exiting");
+        return Status::SUCCESS;
     }
     
     let input_option = loop {
@@ -50,6 +52,7 @@ fn efi_main() -> Status {
         };
         // user requested exit
         if input.len() == 0 {
+            log::debug!("Input buffer empty, exiting");
             return Status::SUCCESS;
         }
         let Ok(num): Result<usize,_> = input.parse() else {
@@ -64,15 +67,10 @@ fn efi_main() -> Status {
     };
     
     let file = &mut locator[input_option];
-    let file_data = match file.load_file() {
-        Ok(data) => data,
-        Err(error) => {
-            log::error!("Failed to load file: {error}");
-            return error.status();
-        }
-    };
+
     
-    let child = match load_image(image_handle(),  uefi::boot::LoadImageSource::FromBuffer { buffer: &*file_data, file_path: None }) { // im not sure how to construct the file path
+    // We use BootSelection here because we are acting as a boot menu
+    let child = match load_image(image_handle(),boot::LoadImageSource::FromDevicePath {device_path: file.path(),boot_policy: BootPolicy::BootSelection}) {
         Ok(data) => data,
         Err(error) => {
             log::error!("Failed to load image: {error}");
@@ -87,6 +85,7 @@ fn efi_main() -> Status {
         }
     };
     let _ = unload_image(child); // we dont care if this fails
+    stall(3_000_000);
 
     Status::SUCCESS
 }
@@ -98,12 +97,16 @@ fn get_input_buffer() -> uefi::Result<alloc::string::String> {
 
     while let Some(_) = input.read_key()? {} // Ignore all buffered input
     loop {
+        log::trace!("waiting for key event");
         let event = input.wait_for_key_event().expect("The docs dont mention why this can fail");
         let _ = boot::wait_for_event(&mut [event]); // I actually dont care about the return code here
-        match input.read_key() {
+        let in_key = input.read_key();
+        log::trace!("key event {:?}", in_key);
+        match in_key { // input.read_key() {
             
             Ok(Some(Key::Printable(c))) => {
-                if c == '\n' {
+                print!("{}",c);
+                if c == '\r' {
                     // I hate this
                     let mut output = CString16::new();
                     for i in buffer {
