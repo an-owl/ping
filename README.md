@@ -20,8 +20,8 @@ This is default search path that the UEFI specification defines for bootloaders 
 
 ## Building
 
-To build this project from source requires a rust compiler version 1.81. Installation instructions can be found (here)[https://doc.rust-lang.org/stable/book/ch01-01-installation.html].
+To build this project from source requires a rust compiler version 1.81. Installation instructions can be found [here](https://doc.rust-lang.org/stable/book/ch01-01-installation.html).
 This requires the appropriate target to be installed, for x86_64 targets this can be done using `cargo target add x86_64-unknown-uefi`.
 With these installed the project can be built by running `cargo build --release --target=x86_64-unknown-uefi` in the project root. 
 This will build a COFF file to `.target/x86_64-unknown-none/release/blip.efi` which can then be installed by following 
-the (installation)[#Installation] instructions.
+the [installation](#Installation) instructions.
