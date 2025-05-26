@@ -6,7 +6,7 @@ license = "MIT"
 
 [dependencies]
 uefi = { version =  "0.35.0", features = ["alloc","global_allocator","panic_handler","logger"] }
-log = "0.4.27"
+log = { version = "0.4.27", features = ["release_max_level_warn"] }
 
 [profile.dev]
 panic = 'abort'
