@@ -10,7 +10,8 @@ will (hopefully) boot the operating system.
 
 Files are listed with their full device-path which can be used to identify different drives.
 
-Because Blip is not signed 
+Because Blip is not signed secure-boot must be disabled in order to run. Once the OS has been booted and boot entries 
+have been restored the system can be rebooted with secure-boot enabled. 
 
 ## Installation
 
